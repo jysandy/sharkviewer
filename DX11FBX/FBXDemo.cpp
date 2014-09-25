@@ -1,0 +1,336 @@
+#include "FBXDemo.h"
+
+namespace FBXDemo
+{
+	FBXApp::FBXApp(HINSTANCE hinstance) : D3dtut::D3DApp(hinstance), compiledVS("VertexShader.cso"), compiledPS("PixelShader.cso")
+	{
+		this->windowCaption = L"FBX Model";
+	}
+
+	FBXApp::~FBXApp()
+	{
+
+	}
+
+	bool FBXApp::Init()
+	{
+		bool foo = D3dtut::D3DApp::Init();
+
+		if (foo)
+		{
+			CreateShaders();
+			LoadModels();
+			CreateInputLayouts();
+			CreateLights();
+			CreateBuffers();
+		}
+
+		return foo;
+	}
+
+	void FBXApp::OnResize()
+	{
+		D3dtut::D3DApp::OnResize();
+
+		D3D11_RASTERIZER_DESC rDesc;
+		SecureZeroMemory(&rDesc, sizeof(rDesc));
+
+		rDesc.MultisampleEnable = true;
+		rDesc.CullMode = D3D11_CULL_NONE;
+		rDesc.FillMode = D3D11_FILL_SOLID;
+		rDesc.FrontCounterClockwise = true;
+		rDesc.AntialiasedLineEnable = true;
+
+		D3dtut::HR(
+			device->CreateRasterizerState(&rDesc, rasterState.address()));
+	}
+
+	void FBXApp::CreateShaders()
+	{
+		using D3dtut::HR;
+
+		HR(
+			this->device->CreateVertexShader(compiledVS.get(), compiledVS.getSize(), nullptr, vertexShader.address()));
+
+		HR(
+			this->device->CreatePixelShader(compiledPS.get(), compiledPS.getSize(), nullptr, pixelShader.address()));
+	}
+
+	void FBXApp::CreateInputLayouts()
+	{
+		using D3dtut::HR;
+		D3D11_INPUT_ELEMENT_DESC vertexDesc[] =
+		{
+			{
+				"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT,
+				D3D11_INPUT_PER_VERTEX_DATA, 0
+			},
+			{
+				"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT,
+				D3D11_INPUT_PER_VERTEX_DATA, 0
+			},
+			{
+				"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT,
+				D3D11_INPUT_PER_VERTEX_DATA, 0
+			},
+			{
+				"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT,
+				D3D11_INPUT_PER_VERTEX_DATA, 0
+			}
+		};
+
+		HR(
+			device->CreateInputLayout(vertexDesc, 4, compiledVS.get(), compiledVS.getSize(), inputLayout.address()));
+	}
+
+	void FBXApp::CreateLights()
+	{
+		DirectionalLight dLight;
+		dLight.ambient = XMFLOAT4(0.2, 0.2, 0.2, 1.0);
+		dLight.diffuse = XMFLOAT4(0.9, 0.9, 0.9, 1.0);
+		dLight.specular = XMFLOAT4(0.3, 0.3, 0.3, 1.0);
+		XMFLOAT3 dir = XMFLOAT3(1, -1, 1);
+		XMVECTOR foo = XMLoadFloat3(&dir);
+		foo = XMVector3Normalize(foo);
+		XMStoreFloat3(&dLight.direction, foo);
+		lightData.dLight = dLight;
+	}
+
+	void FBXApp::CreateBuffers()
+	{
+		using D3dtut::HR;
+
+		D3D11_BUFFER_DESC desc;
+		SecureZeroMemory(&desc, sizeof(desc));
+		desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		desc.ByteWidth = geometryBufferData.getVertices().size() * sizeof(D3dtut::Vertex);
+		desc.CPUAccessFlags = 0;
+		desc.MiscFlags = 0;
+		desc.Usage = D3D11_USAGE_DEFAULT;
+
+		D3D11_SUBRESOURCE_DATA data;
+		data.pSysMem = geometryBufferData.getVertices().data();
+		data.SysMemPitch = 0;
+		data.SysMemSlicePitch = 0;
+
+		HR(
+			device->CreateBuffer(&desc, &data, vertexBuffer.address()));
+
+		desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		desc.ByteWidth = geometryBufferData.getIndices().size() * sizeof(unsigned int);
+		data.pSysMem = geometryBufferData.getIndices().data();
+
+		HR(
+			device->CreateBuffer(&desc, &data, indexBuffer.address()));
+
+		desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		desc.ByteWidth = sizeof(TransformConstantBufferData);
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+		HR(
+			device->CreateBuffer(&desc, nullptr, transformConstantBuffer.address()));
+
+		desc.ByteWidth = sizeof(LightConstantBufferData);
+
+		HR(
+			device->CreateBuffer(&desc, nullptr, lightConstantBuffer.address()));
+	}
+
+	void FBXApp::LoadModels()
+	{
+		std::string filename = "Phong.FBX";
+
+		FbxManager* sdkManager = FbxManager::Create();
+		FbxIOSettings* ios = FbxIOSettings::Create(sdkManager, IOSROOT);
+		sdkManager->SetIOSettings(ios);
+
+		FbxImporter* importer = FbxImporter::Create(sdkManager, "Importer");
+
+		if (!importer->Initialize(filename.c_str(), -1, sdkManager->GetIOSettings()))
+		{
+			throw std::exception(importer->GetStatus().GetErrorString());
+		}
+
+		FbxScene* scene = FbxScene::Create(sdkManager, "Scene");
+		importer->Import(scene);
+		importer->Destroy();
+
+		FbxAxisSystem::DirectX.ConvertScene(scene);
+
+		FbxNode* rootNode = scene->GetRootNode();
+		if (!rootNode)
+		{
+			throw D3dtut::D3DException(L"Empty file. No root node present.");
+		}
+
+		for (int i = 0; i < rootNode->GetChildCount(); i++)
+		{
+			FbxNode* child = rootNode->GetChild(i);
+			for (int j = 0; j < child->GetNodeAttributeCount(); j++)
+			{
+				FbxMesh* mesh = child->GetMesh();
+				if (mesh)
+				{
+					FbxAMatrix& worldMatrix = child->EvaluateGlobalTransform();
+					DirectX::XMFLOAT4X4 world;
+					mesh->GenerateNormals(true, true, false);
+					for (int k = 0; k < 4; k++)
+					{
+						for (int l = 0; l < 4; l++)
+						{
+							world.m[k][l] = worldMatrix.Get(k, l);
+						}
+					}
+					
+					//XMMATRIX bar = DirectX::XMLoadFloat4x4(&world);
+					//bar *= DirectX::XMMatrixScaling(0.01, 0.01, 0.01);
+					//DirectX::XMStoreFloat4x4(&world, bar);
+
+					//DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
+
+					FbxGeometryElementNormal* normals = mesh->GetElementNormal();
+					
+					if (normals->GetMappingMode() != FbxLayerElement::eByControlPoint)
+					{
+						throw D3dtut::D3DException(L"Unsupported mapping type of normal layer.");
+					}
+
+					if (normals->GetReferenceMode() != FbxLayerElement::eDirect)
+					{
+						throw D3dtut::D3DException(L"Unsupported reference mode of normal layer.");
+					}
+
+					auto controlPoints = mesh->GetControlPoints();
+					auto controlIndices = mesh->GetPolygonVertices();
+					auto normalArray = normals->GetDirectArray();
+					auto normalIndexArray = normals->GetIndexArray();
+
+					std::vector<D3dtut::Vertex> vertices;
+
+					for (int i = 0; i < mesh->GetControlPointsCount(); i++)
+					{
+						D3dtut::Vertex foo;
+						
+						foo.position.x = controlPoints[i][0];
+						foo.position.y = controlPoints[i][1];
+						foo.position.z = controlPoints[i][2];
+
+						
+						foo.normal.x = normalArray[i][0];
+						foo.normal.y = normalArray[i][1];
+						foo.normal.z = normalArray[i][2];
+						
+						vertices.push_back(foo);
+					}
+					/*
+					for (int i = 0; i < normalIndexArray.GetCount(); i++)
+					{
+						D3dtut::Vertex& foo = vertices[normalIndexArray[i]];
+						foo.normal.x = normalArray[i][0];
+						foo.normal.y = normalArray[i][1];
+						foo.normal.z = normalArray[i][2];
+
+					}
+					*/
+					std::vector<unsigned int> indices = std::vector<unsigned int>(controlIndices, controlIndices + mesh->GetPolygonVertexCount());
+
+					D3dtut::MeshData data;
+					data.vertices = vertices;
+					data.indices = indices;
+
+					//Get the material.
+					auto material = child->GetMaterial(0);
+
+					if (!material)
+					{
+						throw D3dtut::D3DException(L"No material found for a mesh.");
+					}
+
+					try
+					{
+						FbxSurfacePhong* phongSurface = reinterpret_cast<FbxSurfacePhong*>(material);
+						Material ganda;
+						ganda.ambient.x = phongSurface->Ambient.Get()[0];
+						ganda.ambient.y = phongSurface->Ambient.Get()[1];
+						ganda.ambient.z = phongSurface->Ambient.Get()[2];
+						ganda.ambient.w = 1;
+
+						ganda.diffuse.x = phongSurface->Diffuse.Get()[0];
+						ganda.diffuse.y = phongSurface->Diffuse.Get()[1];
+						ganda.diffuse.z = phongSurface->Diffuse.Get()[2];
+						ganda.diffuse.w = 1;
+
+						ganda.specular.x = phongSurface->Specular.Get()[0];
+						ganda.specular.y = phongSurface->Specular.Get()[1];
+						ganda.specular.z = phongSurface->Specular.Get()[2];
+						ganda.specular.w = phongSurface->Shininess.Get();
+
+						D3dtut::Model model(data.getId(), "mesh");
+						model.world = world;
+						models.push_back(model);
+						materials[model.getId()] = ganda;
+						geometryBufferData.Append(data);
+					}
+					catch (std::exception&)
+					{
+						//Do nothing.
+					}
+				}
+			}
+		}
+	}
+
+	void FBXApp::UpdateScene(float dt)
+	{
+		D3DApp::UpdateScene(dt);
+		lightData.cameraPosition = camera.getCameraPosition();
+	}
+
+	void FBXApp::DrawScene()
+	{
+		using D3dtut::HR;
+
+		deviceContext->ClearRenderTargetView(renderTargetView.get(), DirectX::Colors::LightCyan);
+		deviceContext->ClearDepthStencilView(depthStencilView.get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+		deviceContext->IASetInputLayout(inputLayout.get());
+		deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		unsigned int stride = sizeof(D3dtut::Vertex);
+		unsigned int offset = 0;
+		deviceContext->IASetVertexBuffers(0, 1, vertexBuffer.address(), &stride, &offset);
+		deviceContext->IASetIndexBuffer(indexBuffer.get(), DXGI_FORMAT_R32_UINT, 0);
+
+		deviceContext->VSSetShader(vertexShader.get(), nullptr, 0);
+		deviceContext->PSSetShader(pixelShader.get(), nullptr, 0);
+
+		for (auto& model : models)
+		{
+			auto indexData = geometryBufferData.getIndexOffsetData();
+			auto modelIndexData = indexData[model.getId()];
+
+			D3D11_MAPPED_SUBRESOURCE mappedResource;
+			deviceContext->Map(transformConstantBuffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			TransformConstantBufferData* tcBufferData = reinterpret_cast<TransformConstantBufferData*>(mappedResource.pData);
+			tcBufferData->SetWorldMatrix(model.world);
+			tcBufferData->SetViewMatrix(camera.getViewMatrix());
+			tcBufferData->SetProjectionMatrix(projectionMatrix);
+			deviceContext->Unmap(transformConstantBuffer.get(), 0);
+
+			lightData.material = materials[model.getId()];
+
+			deviceContext->Map(lightConstantBuffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			LightConstantBufferData* lcBufferData = reinterpret_cast<LightConstantBufferData*>(mappedResource.pData);
+			*lcBufferData = lightData;
+			deviceContext->Unmap(lightConstantBuffer.get(), 0);
+
+			deviceContext->VSSetConstantBuffers(0, 1, transformConstantBuffer.address());
+			deviceContext->PSSetConstantBuffers(1, 1, lightConstantBuffer.address());
+			//deviceContext->RSSetState(rasterState.get());
+			deviceContext->DrawIndexed(modelIndexData.indexCount, modelIndexData.baseIndexOffset, modelIndexData.baseVertexOffset);
+		}
+
+		HR(swapChain->Present(1, 0));
+	}
+}
