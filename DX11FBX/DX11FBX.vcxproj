@@ -52,7 +52,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\jysan_000\Documents\Visual Studio 2013\Projects\DX11Lib\DX11Lib;C:\Users\jysan_000\Code Libraries\C++\FBX SDK\2015_1\2015.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\jysan_000\Code Libraries\C++;C:\Users\jysan_000\Documents\Visual Studio 2013\Projects\DX11Lib\DX11Lib;C:\Users\jysan_000\Code Libraries\C++\FBX SDK\2015_1\2015.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -71,7 +71,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\jysan_000\Documents\Visual Studio 2013\Projects\DX11Lib\DX11Lib;C:\Users\jysan_000\Code Libraries\C++\FBX SDK\2015_1\2015.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\jysan_000\Code Libraries\C++;C:\Users\jysan_000\Documents\Visual Studio 2013\Projects\DX11Lib\DX11Lib;C:\Users\jysan_000\Code Libraries\C++\FBX SDK\2015_1\2015.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -88,6 +88,9 @@
     <ClCompile Include="TransformConstantBufferData.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\Code Libraries\C++\DirectXTK\DirectXTK_Desktop_2013.vcxproj">
+      <Project>{e0b52ae7-e160-4d32-bf3f-910b785e5a8e}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\DX11Lib\DX11Lib\DX11Lib.vcxproj">
       <Project>{f28f55b8-a0a2-4d1a-ad7a-bc3515c7e94c}</Project>
     </ProjectReference>

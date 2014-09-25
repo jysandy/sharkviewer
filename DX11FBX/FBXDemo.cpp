@@ -5,11 +5,12 @@ namespace FBXDemo
 	FBXApp::FBXApp(HINSTANCE hinstance) : D3dtut::D3DApp(hinstance), compiledVS("VertexShader.cso"), compiledPS("PixelShader.cso")
 	{
 		this->windowCaption = L"FBX Model";
+		CoInitializeEx(0, 0);
 	}
 
 	FBXApp::~FBXApp()
 	{
-
+		CoUninitialize();
 	}
 
 	bool FBXApp::Init()
@@ -26,23 +27,6 @@ namespace FBXDemo
 		}
 
 		return foo;
-	}
-
-	void FBXApp::OnResize()
-	{
-		D3dtut::D3DApp::OnResize();
-
-		D3D11_RASTERIZER_DESC rDesc;
-		SecureZeroMemory(&rDesc, sizeof(rDesc));
-
-		rDesc.MultisampleEnable = true;
-		rDesc.CullMode = D3D11_CULL_NONE;
-		rDesc.FillMode = D3D11_FILL_SOLID;
-		rDesc.FrontCounterClockwise = true;
-		rDesc.AntialiasedLineEnable = true;
-
-		D3dtut::HR(
-			device->CreateRasterizerState(&rDesc, rasterState.address()));
 	}
 
 	void FBXApp::CreateShaders()
@@ -139,7 +123,7 @@ namespace FBXDemo
 
 	void FBXApp::LoadModels()
 	{
-		std::string filename = "Phong.FBX";
+		std::string filename = "megalodon.FBX";
 
 		FbxManager* sdkManager = FbxManager::Create();
 		FbxIOSettings* ios = FbxIOSettings::Create(sdkManager, IOSROOT);
@@ -182,14 +166,14 @@ namespace FBXDemo
 							world.m[k][l] = worldMatrix.Get(k, l);
 						}
 					}
-					
-					//XMMATRIX bar = DirectX::XMLoadFloat4x4(&world);
-					//bar *= DirectX::XMMatrixScaling(0.01, 0.01, 0.01);
-					//DirectX::XMStoreFloat4x4(&world, bar);
 
 					//DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
+					XMMATRIX balls = XMLoadFloat4x4(&world);
+					balls *= DirectX::XMMatrixRotationX(DirectX::XM_PI);
+					DirectX::XMStoreFloat4x4(&world, balls);
 
 					FbxGeometryElementNormal* normals = mesh->GetElementNormal();
+					FbxGeometryElementUV* uvs = mesh->GetElementUV();
 					
 					if (normals->GetMappingMode() != FbxLayerElement::eByControlPoint)
 					{
@@ -201,10 +185,27 @@ namespace FBXDemo
 						throw D3dtut::D3DException(L"Unsupported reference mode of normal layer.");
 					}
 
+					if (!uvs)
+					{
+						throw D3dtut::D3DException(L"No UV mapping information available.");
+					}
+
+					if (uvs->GetMappingMode() != FbxLayerElement::eByPolygonVertex)
+					{
+						throw D3dtut::D3DException(L"Unsupported mapping type of UV layer.");
+					}
+
+					if (uvs->GetReferenceMode() != FbxLayerElement::eIndexToDirect)
+					{
+						throw D3dtut::D3DException(L"Unsupported reference mode of UV layer.");
+					}
+
 					auto controlPoints = mesh->GetControlPoints();
 					auto controlIndices = mesh->GetPolygonVertices();
 					auto normalArray = normals->GetDirectArray();
 					auto normalIndexArray = normals->GetIndexArray();
+					auto uvArray = uvs->GetDirectArray();
+					auto uvIndexArray = uvs->GetIndexArray();
 
 					std::vector<D3dtut::Vertex> vertices;
 
@@ -220,19 +221,13 @@ namespace FBXDemo
 						foo.normal.x = normalArray[i][0];
 						foo.normal.y = normalArray[i][1];
 						foo.normal.z = normalArray[i][2];
+
+						foo.texCoord.x = uvArray[uvIndexArray[i]][0];
+						foo.texCoord.y = uvArray[uvIndexArray[i]][1];
 						
 						vertices.push_back(foo);
 					}
-					/*
-					for (int i = 0; i < normalIndexArray.GetCount(); i++)
-					{
-						D3dtut::Vertex& foo = vertices[normalIndexArray[i]];
-						foo.normal.x = normalArray[i][0];
-						foo.normal.y = normalArray[i][1];
-						foo.normal.z = normalArray[i][2];
 
-					}
-					*/
 					std::vector<unsigned int> indices = std::vector<unsigned int>(controlIndices, controlIndices + mesh->GetPolygonVertexCount());
 
 					D3dtut::MeshData data;
@@ -245,6 +240,11 @@ namespace FBXDemo
 					if (!material)
 					{
 						throw D3dtut::D3DException(L"No material found for a mesh.");
+					}
+
+					if (!material->Is<FbxSurfacePhong>())
+					{
+						throw D3dtut::D3DException(L"Not phong material.");
 					}
 
 					try
@@ -279,6 +279,26 @@ namespace FBXDemo
 				}
 			}
 		}
+
+		D3dtut::HR(
+			DirectX::CreateWICTextureFromFile(
+			device.get(),
+			L"megalodon.png",
+			reinterpret_cast<ID3D11Resource**>(modelTexture.address()),
+			shaderResourceView.address()));
+
+		D3D11_SAMPLER_DESC samplerDesc;
+		SecureZeroMemory(&samplerDesc, sizeof(samplerDesc));
+		samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+		samplerDesc.MaxAnisotropy = 16;
+		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.MaxLOD = FLT_MAX;
+
+		D3dtut::HR(
+			device->CreateSamplerState(&samplerDesc, samplerState.address())
+			);
 	}
 
 	void FBXApp::UpdateScene(float dt)
@@ -304,7 +324,8 @@ namespace FBXDemo
 
 		deviceContext->VSSetShader(vertexShader.get(), nullptr, 0);
 		deviceContext->PSSetShader(pixelShader.get(), nullptr, 0);
-
+		deviceContext->PSSetShaderResources(0, 1, shaderResourceView.address());
+		deviceContext->PSSetSamplers(0, 1, samplerState.address());
 		for (auto& model : models)
 		{
 			auto indexData = geometryBufferData.getIndexOffsetData();

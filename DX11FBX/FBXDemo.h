@@ -17,6 +17,7 @@
 #include <string>
 #include <stdexcept>
 #include <exception>
+#include <DirectXTK/Inc/WICTextureLoader.h>
 
 
 namespace FBXDemo
@@ -28,7 +29,6 @@ namespace FBXDemo
 		virtual ~FBXApp();
 
 		virtual bool Init();
-		virtual void OnResize();
 
 		virtual void UpdateScene(float dt);
 		virtual void DrawScene();
@@ -49,6 +49,9 @@ namespace FBXDemo
 		D3dtut::ComPtr<ID3D11VertexShader> vertexShader;
 		D3dtut::ComPtr<ID3D11PixelShader> pixelShader;
 		D3dtut::ComPtr<ID3D11InputLayout> inputLayout;
+		D3dtut::ComPtr<ID3D11Texture2D> modelTexture;
+		D3dtut::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
+		D3dtut::ComPtr<ID3D11SamplerState> samplerState;
 
 		D3dtut::CompiledShader compiledVS;
 		D3dtut::CompiledShader compiledPS;

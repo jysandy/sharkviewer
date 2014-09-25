@@ -4,6 +4,7 @@ struct PixelShaderInput
 	float4 posW : POSITION;
 	float4 color : COLOR;
 	float3 normal : NORMAL;
+	float2 texcoord : TEXCOORD;
 };
 
 struct Material
@@ -21,6 +22,9 @@ struct DirectionalLight
 	float3 direction;
 	float pad;
 };
+
+Texture2D Texture : register(t0);
+sampler s : register(s0);
 
 struct PointLight
 {
@@ -197,7 +201,8 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	directionalColor = computeDirectionalColor(normal, toEye);
 	
 	float4 litColor;
-	litColor = directionalColor.ambient + directionalColor.diffuse + directionalColor.specular;
+	float4 texColor = Texture.Sample(s, input.texcoord);
+	litColor = texColor * (directionalColor.ambient + directionalColor.diffuse) + directionalColor.specular;
 	litColor.a = material.diffuse.a;
 	
 	return litColor;

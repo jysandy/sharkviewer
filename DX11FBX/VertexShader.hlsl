@@ -19,12 +19,14 @@ struct PixelShaderInput
 	float4 posW : POSITION;
 	float4 color : COLOR;
 	float3 normal : NORMAL;
+	float2 texcoord : TEXCOORD;
 };
 
 PixelShaderInput main(VertexShaderInput input)
 {
 	PixelShaderInput output;
 	output.color = input.color;
+	output.texcoord = input.texcoord;
 	float4x4 wvp;
 	wvp = mul(mul(world, view), projection);
 	output.posH = mul(float4(input.pos, 1.0f), wvp);
