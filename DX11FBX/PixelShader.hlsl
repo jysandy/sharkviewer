@@ -203,6 +203,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	float4 litColor;
 	float4 texColor = Texture.Sample(s, input.texcoord);
 	litColor = texColor * (directionalColor.ambient + directionalColor.diffuse) + directionalColor.specular;
+	//litColor = directionalColor.ambient + directionalColor.diffuse + directionalColor.specular;
 	litColor.a = material.diffuse.a;
 	
 	return litColor;

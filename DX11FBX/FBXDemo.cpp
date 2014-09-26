@@ -141,6 +141,7 @@ namespace FBXDemo
 		importer->Destroy();
 
 		FbxAxisSystem::DirectX.ConvertScene(scene);
+		//auto settings = scene->GetGlobalSettings();
 
 		FbxNode* rootNode = scene->GetRootNode();
 		if (!rootNode)
@@ -158,7 +159,7 @@ namespace FBXDemo
 				{
 					FbxAMatrix& worldMatrix = child->EvaluateGlobalTransform();
 					DirectX::XMFLOAT4X4 world;
-					mesh->GenerateNormals(true, true, false);
+					mesh->GenerateNormals();
 					for (int k = 0; k < 4; k++)
 					{
 						for (int l = 0; l < 4; l++)
@@ -175,7 +176,7 @@ namespace FBXDemo
 					FbxGeometryElementNormal* normals = mesh->GetElementNormal();
 					FbxGeometryElementUV* uvs = mesh->GetElementUV();
 					
-					if (normals->GetMappingMode() != FbxLayerElement::eByControlPoint)
+					if (normals->GetMappingMode() != FbxLayerElement::eByPolygonVertex)
 					{
 						throw D3dtut::D3DException(L"Unsupported mapping type of normal layer.");
 					}
@@ -200,6 +201,8 @@ namespace FBXDemo
 						throw D3dtut::D3DException(L"Unsupported reference mode of UV layer.");
 					}
 
+					const char* uvSetName = uvs->GetName();
+
 					auto controlPoints = mesh->GetControlPoints();
 					auto controlIndices = mesh->GetPolygonVertices();
 					auto normalArray = normals->GetDirectArray();
@@ -208,7 +211,10 @@ namespace FBXDemo
 					auto uvIndexArray = uvs->GetIndexArray();
 
 					std::vector<D3dtut::Vertex> vertices;
-
+					std::vector<unsigned int> indices;
+					/*
+					std::vector<unsigned int> indices = std::vector<unsigned int>(controlIndices, controlIndices + mesh->GetPolygonVertexCount());
+					
 					for (int i = 0; i < mesh->GetControlPointsCount(); i++)
 					{
 						D3dtut::Vertex foo;
@@ -222,14 +228,51 @@ namespace FBXDemo
 						foo.normal.y = normalArray[i][1];
 						foo.normal.z = normalArray[i][2];
 
-						foo.texCoord.x = uvArray[uvIndexArray[i]][0];
-						foo.texCoord.y = uvArray[uvIndexArray[i]][1];
+						foo.texCoord.x = uvArray[i][0];
+						foo.texCoord.y = uvArray[i][1];
 						
 						vertices.push_back(foo);
 					}
+					*/
+					
+					unsigned int index = 0;
+					for (int polygonIndex = 0; polygonIndex < mesh->GetPolygonCount(); polygonIndex++)
+					{
+						if (mesh->GetPolygonSize(polygonIndex) != 3)
+						{
+							throw D3dtut::D3DException(L"Polygon is not a triangle.");
+						}
 
-					std::vector<unsigned int> indices = std::vector<unsigned int>(controlIndices, controlIndices + mesh->GetPolygonVertexCount());
+						for (int vertexPosition = 0; vertexPosition < mesh->GetPolygonSize(polygonIndex); vertexPosition++)
+						{
+							D3dtut::Vertex foo;
+							int controlPointIndex = mesh->GetPolygonVertex(polygonIndex, vertexPosition);
 
+							foo.position.x = controlPoints[controlPointIndex][0];
+							foo.position.y = controlPoints[controlPointIndex][1];
+							foo.position.z = controlPoints[controlPointIndex][2];
+
+							FbxVector4 norm;
+							mesh->GetPolygonVertexNormal(polygonIndex, vertexPosition, norm);
+							int normalIndex = normalIndexArray[controlPointIndex];
+							foo.normal.x = norm[0];
+							foo.normal.y = norm[1];
+							foo.normal.z = norm[2];
+
+							FbxVector2 tex;
+							bool mapped;
+							mesh->GetPolygonVertexUV(polygonIndex, vertexPosition, uvSetName, tex, mapped);
+							int uvIndex = uvIndexArray[controlPointIndex];
+							foo.texCoord.x = tex[0];
+							foo.texCoord.y = 1 - tex[1];
+
+							vertices.push_back(foo);
+							indices.push_back(index);
+
+							index++;
+						}
+					}
+					
 					D3dtut::MeshData data;
 					data.vertices = vertices;
 					data.indices = indices;
