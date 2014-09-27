@@ -141,9 +141,6 @@ namespace FBXDemo
 		importer->Import(scene);
 		importer->Destroy();
 
-		//FbxAxisSystem::DirectX.ConvertScene(scene);
-		//auto settings = scene->GetGlobalSettings();
-
 		FbxNode* rootNode = scene->GetRootNode();
 		if (!rootNode)
 		{
@@ -194,11 +191,6 @@ namespace FBXDemo
 						world.m[k][l] = worldMatrix.Get(k, l);
 					}
 				}
-
-				//DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
-				XMMATRIX balls = XMLoadFloat4x4(&world);
-				balls *= DirectX::XMMatrixRotationX(DirectX::XM_PI);
-				//DirectX::XMStoreFloat4x4(&world, balls);
 
 				FbxGeometryElementNormal* normals = mesh->GetElementNormal();
 				FbxGeometryElementUV* uvs = mesh->GetElementUV();
@@ -380,7 +372,6 @@ namespace FBXDemo
 
 			deviceContext->VSSetConstantBuffers(0, 1, transformConstantBuffer.address());
 			deviceContext->PSSetConstantBuffers(1, 1, lightConstantBuffer.address());
-			//deviceContext->RSSetState(rasterState.get());
 			deviceContext->DrawIndexed(modelIndexData.indexCount, modelIndexData.baseIndexOffset, modelIndexData.baseVertexOffset);
 		}
 

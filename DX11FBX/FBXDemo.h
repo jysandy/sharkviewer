@@ -46,7 +46,6 @@ namespace FBXDemo
 		D3dtut::ComPtr<ID3D11Buffer> indexBuffer;
 		D3dtut::ComPtr<ID3D11Buffer> transformConstantBuffer;
 		D3dtut::ComPtr<ID3D11Buffer> lightConstantBuffer;
-		D3dtut::ComPtr<ID3D11RasterizerState> rasterState;
 		D3dtut::ComPtr<ID3D11VertexShader> vertexShader;
 		D3dtut::ComPtr<ID3D11PixelShader> pixelShader;
 		D3dtut::ComPtr<ID3D11InputLayout> inputLayout;
