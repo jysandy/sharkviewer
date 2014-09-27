@@ -11,3 +11,6 @@ Load the solution into Visual Studio, then configure the DX11FBX project as dire
 
 Then simply build and run. To move the camera, use the WASD keys. Hold LMB and move the mouse to rotate the camera.
 Press Alt+Enter to go into fullscreen mode.
+
+NOTE: I did NOT write the DirectXTK project. It's an open source library which I included in the repository 
+for convenience. I wrote the other two projects though :P
