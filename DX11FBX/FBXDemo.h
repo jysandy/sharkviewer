@@ -39,6 +39,7 @@ namespace FBXDemo
 		void CreateInputLayouts();
 		void CreateLights();
 		void LoadModels();
+		void BuildMeshes(FbxNode* child);
 
 	private:
 		D3dtut::ComPtr<ID3D11Buffer> vertexBuffer;

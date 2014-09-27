@@ -124,6 +124,7 @@ namespace FBXDemo
 	void FBXApp::LoadModels()
 	{
 		std::string filename = "megalodon.FBX";
+		const wchar_t* texturename = L"megalodon.png";
 
 		FbxManager* sdkManager = FbxManager::Create();
 		FbxIOSettings* ios = FbxIOSettings::Create(sdkManager, IOSROOT);
@@ -140,7 +141,7 @@ namespace FBXDemo
 		importer->Import(scene);
 		importer->Destroy();
 
-		FbxAxisSystem::DirectX.ConvertScene(scene);
+		//FbxAxisSystem::DirectX.ConvertScene(scene);
 		//auto settings = scene->GetGlobalSettings();
 
 		FbxNode* rootNode = scene->GetRootNode();
@@ -152,181 +153,13 @@ namespace FBXDemo
 		for (int i = 0; i < rootNode->GetChildCount(); i++)
 		{
 			FbxNode* child = rootNode->GetChild(i);
-			for (int j = 0; j < child->GetNodeAttributeCount(); j++)
-			{
-				FbxMesh* mesh = child->GetMesh();
-				if (mesh)
-				{
-					FbxAMatrix& worldMatrix = child->EvaluateGlobalTransform();
-					DirectX::XMFLOAT4X4 world;
-					mesh->GenerateNormals();
-					for (int k = 0; k < 4; k++)
-					{
-						for (int l = 0; l < 4; l++)
-						{
-							world.m[k][l] = worldMatrix.Get(k, l);
-						}
-					}
-
-					//DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
-					XMMATRIX balls = XMLoadFloat4x4(&world);
-					balls *= DirectX::XMMatrixRotationX(DirectX::XM_PI);
-					DirectX::XMStoreFloat4x4(&world, balls);
-
-					FbxGeometryElementNormal* normals = mesh->GetElementNormal();
-					FbxGeometryElementUV* uvs = mesh->GetElementUV();
-					
-					if (normals->GetMappingMode() != FbxLayerElement::eByPolygonVertex)
-					{
-						throw D3dtut::D3DException(L"Unsupported mapping type of normal layer.");
-					}
-
-					if (normals->GetReferenceMode() != FbxLayerElement::eDirect)
-					{
-						throw D3dtut::D3DException(L"Unsupported reference mode of normal layer.");
-					}
-
-					if (!uvs)
-					{
-						throw D3dtut::D3DException(L"No UV mapping information available.");
-					}
-
-					if (uvs->GetMappingMode() != FbxLayerElement::eByPolygonVertex)
-					{
-						throw D3dtut::D3DException(L"Unsupported mapping type of UV layer.");
-					}
-
-					if (uvs->GetReferenceMode() != FbxLayerElement::eIndexToDirect)
-					{
-						throw D3dtut::D3DException(L"Unsupported reference mode of UV layer.");
-					}
-
-					const char* uvSetName = uvs->GetName();
-
-					auto controlPoints = mesh->GetControlPoints();
-					auto controlIndices = mesh->GetPolygonVertices();
-					auto normalArray = normals->GetDirectArray();
-					auto normalIndexArray = normals->GetIndexArray();
-					auto uvArray = uvs->GetDirectArray();
-					auto uvIndexArray = uvs->GetIndexArray();
-
-					std::vector<D3dtut::Vertex> vertices;
-					std::vector<unsigned int> indices;
-					/*
-					std::vector<unsigned int> indices = std::vector<unsigned int>(controlIndices, controlIndices + mesh->GetPolygonVertexCount());
-					
-					for (int i = 0; i < mesh->GetControlPointsCount(); i++)
-					{
-						D3dtut::Vertex foo;
-						
-						foo.position.x = controlPoints[i][0];
-						foo.position.y = controlPoints[i][1];
-						foo.position.z = controlPoints[i][2];
-
-						
-						foo.normal.x = normalArray[i][0];
-						foo.normal.y = normalArray[i][1];
-						foo.normal.z = normalArray[i][2];
-
-						foo.texCoord.x = uvArray[i][0];
-						foo.texCoord.y = uvArray[i][1];
-						
-						vertices.push_back(foo);
-					}
-					*/
-					
-					unsigned int index = 0;
-					for (int polygonIndex = 0; polygonIndex < mesh->GetPolygonCount(); polygonIndex++)
-					{
-						if (mesh->GetPolygonSize(polygonIndex) != 3)
-						{
-							throw D3dtut::D3DException(L"Polygon is not a triangle.");
-						}
-
-						for (int vertexPosition = 0; vertexPosition < mesh->GetPolygonSize(polygonIndex); vertexPosition++)
-						{
-							D3dtut::Vertex foo;
-							int controlPointIndex = mesh->GetPolygonVertex(polygonIndex, vertexPosition);
-
-							foo.position.x = controlPoints[controlPointIndex][0];
-							foo.position.y = controlPoints[controlPointIndex][1];
-							foo.position.z = controlPoints[controlPointIndex][2];
-
-							FbxVector4 norm;
-							mesh->GetPolygonVertexNormal(polygonIndex, vertexPosition, norm);
-							int normalIndex = normalIndexArray[controlPointIndex];
-							foo.normal.x = norm[0];
-							foo.normal.y = norm[1];
-							foo.normal.z = norm[2];
-
-							FbxVector2 tex;
-							bool mapped;
-							mesh->GetPolygonVertexUV(polygonIndex, vertexPosition, uvSetName, tex, mapped);
-							int uvIndex = uvIndexArray[controlPointIndex];
-							foo.texCoord.x = tex[0];
-							foo.texCoord.y = 1 - tex[1];
-
-							vertices.push_back(foo);
-							indices.push_back(index);
-
-							index++;
-						}
-					}
-					
-					D3dtut::MeshData data;
-					data.vertices = vertices;
-					data.indices = indices;
-
-					//Get the material.
-					auto material = child->GetMaterial(0);
-
-					if (!material)
-					{
-						throw D3dtut::D3DException(L"No material found for a mesh.");
-					}
-
-					if (!material->Is<FbxSurfacePhong>())
-					{
-						throw D3dtut::D3DException(L"Not phong material.");
-					}
-
-					try
-					{
-						FbxSurfacePhong* phongSurface = reinterpret_cast<FbxSurfacePhong*>(material);
-						Material ganda;
-						ganda.ambient.x = phongSurface->Ambient.Get()[0];
-						ganda.ambient.y = phongSurface->Ambient.Get()[1];
-						ganda.ambient.z = phongSurface->Ambient.Get()[2];
-						ganda.ambient.w = 1;
-
-						ganda.diffuse.x = phongSurface->Diffuse.Get()[0];
-						ganda.diffuse.y = phongSurface->Diffuse.Get()[1];
-						ganda.diffuse.z = phongSurface->Diffuse.Get()[2];
-						ganda.diffuse.w = 1;
-
-						ganda.specular.x = phongSurface->Specular.Get()[0];
-						ganda.specular.y = phongSurface->Specular.Get()[1];
-						ganda.specular.z = phongSurface->Specular.Get()[2];
-						ganda.specular.w = phongSurface->Shininess.Get();
-
-						D3dtut::Model model(data.getId(), "mesh");
-						model.world = world;
-						models.push_back(model);
-						materials[model.getId()] = ganda;
-						geometryBufferData.Append(data);
-					}
-					catch (std::exception&)
-					{
-						//Do nothing.
-					}
-				}
-			}
+			BuildMeshes(child);
 		}
 
 		D3dtut::HR(
 			DirectX::CreateWICTextureFromFile(
 			device.get(),
-			L"megalodon.png",
+			texturename,
 			reinterpret_cast<ID3D11Resource**>(modelTexture.address()),
 			shaderResourceView.address()));
 
@@ -342,6 +175,162 @@ namespace FBXDemo
 		D3dtut::HR(
 			device->CreateSamplerState(&samplerDesc, samplerState.address())
 			);
+	}
+
+	void FBXApp::BuildMeshes(FbxNode* child)
+	{
+		for (int j = 0; j < child->GetNodeAttributeCount(); j++)
+		{
+			FbxMesh* mesh = child->GetMesh();
+			if (mesh)
+			{
+				FbxAMatrix& worldMatrix = child->EvaluateGlobalTransform();
+				DirectX::XMFLOAT4X4 world;
+				mesh->GenerateNormals();
+				for (int k = 0; k < 4; k++)
+				{
+					for (int l = 0; l < 4; l++)
+					{
+						world.m[k][l] = worldMatrix.Get(k, l);
+					}
+				}
+
+				//DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
+				XMMATRIX balls = XMLoadFloat4x4(&world);
+				balls *= DirectX::XMMatrixRotationX(DirectX::XM_PI);
+				//DirectX::XMStoreFloat4x4(&world, balls);
+
+				FbxGeometryElementNormal* normals = mesh->GetElementNormal();
+				FbxGeometryElementUV* uvs = mesh->GetElementUV();
+
+				if (normals->GetMappingMode() != FbxLayerElement::eByPolygonVertex)
+				{
+					throw D3dtut::D3DException(L"Unsupported mapping type of normal layer.");
+				}
+
+				if (normals->GetReferenceMode() != FbxLayerElement::eDirect)
+				{
+					throw D3dtut::D3DException(L"Unsupported reference mode of normal layer.");
+				}
+
+				if (!uvs)
+				{
+					throw D3dtut::D3DException(L"No UV mapping information available.");
+				}
+
+				if (uvs->GetMappingMode() != FbxLayerElement::eByPolygonVertex)
+				{
+					throw D3dtut::D3DException(L"Unsupported mapping type of UV layer.");
+				}
+
+				if (uvs->GetReferenceMode() != FbxLayerElement::eIndexToDirect)
+				{
+					throw D3dtut::D3DException(L"Unsupported reference mode of UV layer.");
+				}
+
+				const char* uvSetName = uvs->GetName();
+
+				auto controlPoints = mesh->GetControlPoints();
+				auto controlIndices = mesh->GetPolygonVertices();
+				auto normalArray = normals->GetDirectArray();
+				auto normalIndexArray = normals->GetIndexArray();
+				auto uvArray = uvs->GetDirectArray();
+				auto uvIndexArray = uvs->GetIndexArray();
+
+				std::vector<D3dtut::Vertex> vertices;
+				std::vector<unsigned int> indices;
+
+				unsigned int index = 0;
+				for (int polygonIndex = 0; polygonIndex < mesh->GetPolygonCount(); polygonIndex++)
+				{
+					if (mesh->GetPolygonSize(polygonIndex) != 3)
+					{
+						throw D3dtut::D3DException(L"Polygon is not a triangle.");
+					}
+
+					for (int vertexPosition = 0; vertexPosition < mesh->GetPolygonSize(polygonIndex); vertexPosition++)
+					{
+						D3dtut::Vertex foo;
+						int controlPointIndex = mesh->GetPolygonVertex(polygonIndex, vertexPosition);
+
+						foo.position.x = controlPoints[controlPointIndex][0];
+						foo.position.y = controlPoints[controlPointIndex][1];
+						foo.position.z = controlPoints[controlPointIndex][2];
+
+						FbxVector4 norm;
+						mesh->GetPolygonVertexNormal(polygonIndex, vertexPosition, norm);
+						int normalIndex = normalIndexArray[controlPointIndex];
+						foo.normal.x = norm[0];
+						foo.normal.y = norm[1];
+						foo.normal.z = norm[2];
+
+						FbxVector2 tex;
+						bool mapped;
+						mesh->GetPolygonVertexUV(polygonIndex, vertexPosition, uvSetName, tex, mapped);
+						int uvIndex = uvIndexArray[controlPointIndex];
+						foo.texCoord.x = tex[0];
+						foo.texCoord.y = 1 - tex[1];
+
+						vertices.push_back(foo);
+						indices.push_back(index);
+
+						index++;
+					}
+				}
+
+				D3dtut::MeshData data;
+				data.vertices = vertices;
+				data.indices = indices;
+
+				//Get the material.
+				auto material = child->GetMaterial(0);
+
+				if (!material)
+				{
+					throw D3dtut::D3DException(L"No material found for a mesh.");
+				}
+
+				if (!material->Is<FbxSurfacePhong>())
+				{
+					throw D3dtut::D3DException(L"Not phong material.");
+				}
+
+				try
+				{
+					FbxSurfacePhong* phongSurface = reinterpret_cast<FbxSurfacePhong*>(material);
+					Material ganda;
+					ganda.ambient.x = phongSurface->Ambient.Get()[0];
+					ganda.ambient.y = phongSurface->Ambient.Get()[1];
+					ganda.ambient.z = phongSurface->Ambient.Get()[2];
+					ganda.ambient.w = 1;
+
+					ganda.diffuse.x = phongSurface->Diffuse.Get()[0];
+					ganda.diffuse.y = phongSurface->Diffuse.Get()[1];
+					ganda.diffuse.z = phongSurface->Diffuse.Get()[2];
+					ganda.diffuse.w = 1;
+
+					ganda.specular.x = phongSurface->Specular.Get()[0];
+					ganda.specular.y = phongSurface->Specular.Get()[1];
+					ganda.specular.z = phongSurface->Specular.Get()[2];
+					ganda.specular.w = phongSurface->Shininess.Get();
+
+					D3dtut::Model model(data.getId(), "mesh");
+					model.world = world;
+					models.push_back(model);
+					materials[model.getId()] = ganda;
+					geometryBufferData.Append(data);
+				}
+				catch (std::exception&)
+				{
+					//Do nothing.
+				}
+			}
+		}
+
+		for (int i = 0; i < child->GetChildCount(); i++)
+		{
+			BuildMeshes(child->GetChild(i));
+		}
 	}
 
 	void FBXApp::UpdateScene(float dt)
