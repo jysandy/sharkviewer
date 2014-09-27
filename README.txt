@@ -1,3 +1,7 @@
+This project requires Visual Studio 2013.
+Download Visual C++ 2013 Express for Windows Desktop for free at 
+http://www.microsoft.com/en-us/download/details.aspx?id=43733
+
 This project depends on the Autodesk FBX SDK.
 Instructions to download and set up the FBX SDK with Visual Studio are available at
 http://help.autodesk.com/view/FBX/2015/ENU/?guid=__files_GUID_6E7B1A2E_584C_49C6_999E_CD8367841B7C_htm
