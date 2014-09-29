@@ -34,7 +34,7 @@ namespace D3dtut
 
 		if (yaw > XM_2PI)
 		{
-			yaw = XM_2PI - pitch;
+			yaw = XM_2PI - yaw;
 		}
 
 		if (pitch > XM_PIDIV2- 0.1f)
