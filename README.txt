@@ -14,3 +14,5 @@ Press Alt+Enter to go into fullscreen mode.
 
 NOTE: I did NOT write the DirectXTK project. It's an open source library which I included in the repository 
 for convenience. I wrote the other two projects though :P
+
+ANOTHER NOTE: I did NOT create the shark model. I obtained it from http://tf3dm.com/3d-model/megalodon-battlefield-4-67390.html
